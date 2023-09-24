@@ -1,4 +1,5 @@
 import logging
+import os
 import struct
 from abc import ABC, abstractmethod
 from typing import Optional, cast
@@ -19,7 +20,7 @@ class BinaryTree:
     """
 
     def __init__(self):
-        pass
+        self.meta_info = {}
 
     def insert(self, row_to_insert: Row, root_row: Row):
         logger.debug(f"{row_to_insert=} {root_row=}")
@@ -42,29 +43,58 @@ class BinaryTree:
     def traverse(
         self,
         root_row: Optional[Row],
+        depth=0,
         row_id_to_search: Optional[int] = None,
         rows_traversed: Optional[list[Row]] = None,
     ) -> list[Row]:
         """
         We do traversal in a DFS format
         """
-        logger.debug(f"{root_row=} {row_id_to_search=}")
+
+        self.meta_info["depth"] = depth
         if rows_traversed is None:
             rows_traversed = []
         if root_row is None:
             return rows_traversed
-        if row_id_to_search is not None and root_row.id.val == row_id_to_search or row_id_to_search is None:
+        if row_id_to_search is None:
+            logger.info(f"{root_row=} {row_id_to_search=} {depth=}")
+
+            rows_traversed = self.traverse(
+                root_row=Row.fetch_row(root_row.left_child_offset.val),
+                rows_traversed=rows_traversed,
+                row_id_to_search=row_id_to_search,
+                depth=depth + 1,
+            )
             rows_traversed.append(root_row)
-        rows_traversed = self.traverse(
-            root_row=Row.fetch_row(root_row.left_child_offset.val),
-            rows_traversed=rows_traversed,
-            row_id_to_search=row_id_to_search,
-        )
-        rows_traversed = self.traverse(
-            root_row=Row.fetch_row(root_row.right_child_offset.val),
-            rows_traversed=rows_traversed,
-            row_id_to_search=row_id_to_search,
-        )
+
+            rows_traversed = self.traverse(
+                root_row=Row.fetch_row(root_row.right_child_offset.val),
+                rows_traversed=rows_traversed,
+                row_id_to_search=row_id_to_search,
+                depth=depth + 1,
+            )
+        else:
+            # if row_id_to_search is not None and root_row.id.val == row_id_to_search or row_id_to_search is None:
+            if row_id_to_search <= root_row.id.val:
+                # if less than we search in left tree
+                if row_id_to_search == root_row.id.val:
+                    rows_traversed.append(root_row)
+                rows_traversed = self.traverse(
+                    root_row=Row.fetch_row(root_row.left_child_offset.val),
+                    rows_traversed=rows_traversed,
+                    row_id_to_search=row_id_to_search,
+                    depth=depth + 1,
+                )
+
+            else:
+                # if value is greater we search in right tree
+                rows_traversed = self.traverse(
+                    root_row=Row.fetch_row(root_row.right_child_offset.val),
+                    rows_traversed=rows_traversed,
+                    row_id_to_search=row_id_to_search,
+                    depth=depth + 1,
+                )
+
         return rows_traversed
 
 
@@ -83,12 +113,13 @@ class Table(ABC):
 
     """
 
-    SPACE_USED_FOR_SAVING_ROW_COUNT = 2
+    SPACE_USED_FOR_SAVING_ROW_COUNT = 4
 
     def __init__(self):
         self.root_row: Optional[Row] = None
         self.row_count: int = 0
         self.offset = 0  # used later to know the offset from where the data of this table exist
+        # self.lru_row_cache: dict[int, Row] = {}
         self.binary_tree = BinaryTree()
         self.load()
 
@@ -111,7 +142,7 @@ class Table(ABC):
             # row nodes whose pointers are updated due to this new insertion
             self.row_count += 1
             file.seek(0)
-            file.write(struct.pack("H", self.row_count))
+            file.write(struct.pack("i", self.row_count))
 
     def insert(self, row: Row):
         row.offset = self.offset_for_a_new_row
@@ -147,8 +178,20 @@ class Student(Table):
         super().__init__()
 
     def load(self):
-        with open(DATABASE_FILE_NAME, "rb") as file:
+        if not os.path.exists(DATABASE_FILE_NAME):
+            # Create the file if it doesn't exist
+            with open(DATABASE_FILE_NAME, "wb"):
+                pass
+        logger.debug(f"Loading table from disk file {DATABASE_FILE_NAME}")
+        with open(DATABASE_FILE_NAME, "rb+") as file:
             row_count_raw = file.read(self.SPACE_USED_FOR_SAVING_ROW_COUNT)
-            self.row_count = struct.unpack("H", row_count_raw)[0]
-            if self.row_count > 0:
-                self.root_row = Row.deserialize(file.read(Row.size()))
+
+            if row_count_raw:
+                self.row_count = struct.unpack("i", row_count_raw)[0]
+                if self.row_count > 0:
+                    self.root_row = Row.deserialize(file.read(Row.size()))
+                    self.root_row.offset = self.SPACE_USED_FOR_SAVING_ROW_COUNT
+            logger.debug(f"{row_count_raw=} {self.row_count=}")
+
+
+student_table = Student()

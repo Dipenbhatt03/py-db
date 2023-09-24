@@ -1,6 +1,9 @@
 import logging
+import random
 import struct
 import unittest
+from cProfile import Profile
+from pstats import SortKey, Stats
 from time import time
 
 import config  # noqa
@@ -11,7 +14,8 @@ from row import IntColumn, Row, StrColumn
 from table import Student
 
 logger = logging.getLogger(__name__)
-logging.getLogger("main").setLevel(logging.INFO)
+logging.getLogger("main").setLevel(logging.WARN)
+logging.getLogger("table").setLevel(logging.WARN)
 
 
 class TestRowClass(unittest.TestCase):
@@ -52,11 +56,28 @@ class TestRowClass(unittest.TestCase):
         self.assertEqual(row_v1.serialize(), row_v2.serialize())
 
 
+class TestTableClass(unittest.TestCase):
+    def setUp(self) -> None:
+        with open(DATABASE_FILE_NAME, "wb"):
+            pass
+        self.student_table = Student()
+
+    def test_existing_table_loads_correctly_from_disk(self):
+        self.student_table.insert(row=Row(id=IntColumn(100), name=StrColumn("dipen")))
+        self.student_table.insert(row=Row(id=IntColumn(200), name=StrColumn("mir")))
+
+        # we load table again
+        self.student_table = Student()
+        self.assertEqual(self.student_table.row_count, 2)
+        # We assert root row offset is correctly set
+        self.assertEqual(self.student_table.root_row.offset, Student.SPACE_USED_FOR_SAVING_ROW_COUNT)
+
+
 class TestInsertion(unittest.TestCase):
-    # def setUp(self) -> None:
-    #     with open(DATABASE_FILE_NAME, "wb"):
-    #         pass
-    #     main.student_table = Student()
+    def setUp(self) -> None:
+        # with open(DATABASE_FILE_NAME, "wb"):
+        #     pass
+        main.student_table = Student()
 
     @staticmethod
     def raw_representation_of_row(id: int, name: str, left_child_offset=-1, right_child_offset=-1):
@@ -118,14 +139,26 @@ class TestInsertion(unittest.TestCase):
         self.assertEqual("Max 32 characters allowed", context.exception.args[0])
 
     def test_insert_lotta_rows(self):
-        num_rows = 1000
-
-        logger.info(f"inserting {num_rows} rows")
+        existing_rows = main.student_table.row_count
+        num_rows = 100000
         t = time()
-        for i in range(num_rows):
-            self.assertEqual(PrepareStatementResult.SUCCESS, self.do_insert_command(id=i, name=f"chacha{str(i)}"))
+        with Profile() as profile:
+            logger.info(f"inserting {num_rows} rows")
 
-        self.assertEqual(main.student_table.row_count, num_rows)
+            for i in range(num_rows):
+                self.assertEqual(
+                    PrepareStatementResult.SUCCESS,
+                    self.do_insert_command(id=random.randint(1, 1000000), name=f"mir chacha{str(i)}"),
+                )
+            self.assertEqual(main.student_table.row_count, num_rows + existing_rows)
+
+            logger.info(
+                f"Profile stats {Stats(profile).strip_dirs().sort_stats(SortKey.CALLS).print_stats().dump_stats('profile')}"
+            )
+        # Now we assert the correctness of the tree, by fetching all child and checking whether they are sorted or not
+        rows = main.student_table.binary_tree.traverse(root_row=main.student_table.root_row)
+        row_ids = [row.id.val for row in rows]
+        self.assertTrue(all(row_ids[i] <= row_ids[i + 1] for i in len(row_ids)))
         logger.info(f"Time took {time() - t}")
 
 
@@ -136,6 +169,15 @@ class TestInsertIntoBinaryTree(unittest.TestCase):
         self.student_table = Student()
 
     def test_insert_row_into_binary_tree_and_assert__child_pointer_correctly_set(self):
+        """
+            we are gonna make a tree like
+
+                    100
+                 /       \
+                 90        110
+              /      \      /
+              80      95    105
+        """
         row1_to_insert = Row(id=IntColumn(100), name=StrColumn("dipen"))
         logger.info(f"Inserting {row1_to_insert=}")
         self.student_table.insert(row=row1_to_insert)
@@ -173,72 +215,3 @@ class TestInsertIntoBinaryTree(unittest.TestCase):
         self.student_table.insert(row=row6_to_insert)
         self.assertEqual(self.student_table.root_row, row1_to_insert)
         self.assertEqual(row6_to_insert.parent, row5_to_insert)
-
-    # def test_insert_and_assert_traversal(self):
-    #     binary_tree = BinaryTree(table=self.student_table)
-    #     binary_tree.insert(row_to_insert=Row(id=IntColumn(100), name=StrColumn("dipen")),
-    #                        root_row=self.student_table.root_row)
-    #     self.assertEqual(self.student_table.root_row.id.val, 100)
-    #     self.assertEqual(self.student_table.row_count, 1)
-    #
-    #     binary_tree.insert(row_to_insert=Row(id=IntColumn(90), name=StrColumn("dipen")),
-    #                        root_row=self.student_table.root_row)
-    #     binary_tree.insert(row_to_insert=Row(id=IntColumn(80), name=StrColumn("dipen")),
-    #                        root_row=self.student_table.root_row)
-    #     """
-    #         BT should be like
-    #             100
-    #             /
-    #             90
-    #             /
-    #             80
-    #
-    #         Doing a DFS should give us a list of [100, 90, 80]
-    #     """
-    #     rows_traversed = [row.id.val for row in binary_tree.traverse(root_row=self.student_table.root_row)]
-    #     self.assertEqual(rows_traversed, [100, 90, 80])
-    #     self.assertEqual(self.student_table.row_count, 3)
-    #     binary_tree.insert(row_to_insert=Row(id=IntColumn(110), name=StrColumn("dipen")),
-    #                        root_row=self.student_table.root_row)
-    #     rows_traversed = [row.id.val for row in binary_tree.traverse(root_row=self.student_table.root_row)]
-    #     self.assertEqual(rows_traversed, [100, 90, 80, 110])
-    #     self.assertEqual(self.student_table.row_count, 4)
-    #     binary_tree.insert(row_to_insert=Row(id=IntColumn(105), name=StrColumn("dipen")),
-    #                        root_row=self.student_table.root_row)
-    #     """
-    #                 BT should be like
-    #                     100
-    #                     /       \
-    #                     90      110
-    #                     /       /
-    #                     80      105
-    #
-    #                 Doing a DFS should give us a list of [100, 90, 80, 110, 105]
-    #             """
-    #
-    #     rows_traversed = [row.id.val for row in binary_tree.traverse(root_row=self.student_table.root_row)]
-    #     self.assertEqual(rows_traversed, [100, 90, 80, 110, 105])
-    #     self.assertEqual(self.student_table.row_count, 5)
-    #
-    # def test_insert_sets_correct_offset(self):
-    #     binary_tree = BinaryTree(table=self.student_table)
-    #     row1_to_insert = Row(id=IntColumn(100), name=StrColumn("dipen"))
-    #     binary_tree.insert(row_to_insert=row1_to_insert, root_row=self.student_table.root_row)
-    #     self.assertEqual(row1_to_insert.offset, 0)
-    #     row2_to_insert = Row(id=IntColumn(90), name=StrColumn("mir"))
-    #     binary_tree.insert(row_to_insert=row2_to_insert, root_row=self.student_table.root_row)
-    #     self.assertEqual(row2_to_insert.offset, Row.size())
-    #     row3_to_insert = Row(id=IntColumn(80), name=StrColumn("dipen"))
-    #     binary_tree.insert(row_to_insert=row3_to_insert, root_row=self.student_table.root_row)
-    #     self.assertEqual(row3_to_insert.offset, row2_to_insert.offset + Row.size())
-    #     row4_to_insert = Row(id=IntColumn(95), name=StrColumn("dipen"))
-    #     binary_tree.insert(row_to_insert=row4_to_insert, root_row=self.student_table.root_row)
-    #     self.assertEqual(row4_to_insert.offset, row3_to_insert.offset + Row.size())
-    #
-    #     row5_to_insert = Row(id=IntColumn(110), name=StrColumn("dipen"))
-    #     binary_tree.insert(row_to_insert=row5_to_insert, root_row=self.student_table.root_row)
-    #     self.assertEqual(row5_to_insert.offset, row4_to_insert.offset + Row.size())
-    #
-    #     row6_to_insert = Row(id=IntColumn(105), name=StrColumn("dipen"))
-    #     binary_tree.insert(row_to_insert=row6_to_insert, root_row=self.student_table.root_row)
-    #     self.assertEqual(row6_to_insert.offset, row5_to_insert.offset + Row.size())

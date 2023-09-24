@@ -1,6 +1,7 @@
 import logging
 import struct
 from abc import ABC, abstractmethod
+from functools import lru_cache
 from typing import Any, Optional, Self, Union, cast
 
 import config  # noqa
@@ -186,6 +187,7 @@ class Row:
         return row
 
     @classmethod
+    @lru_cache(maxsize=1000000)
     def fetch_row(cls, location_in_file: int) -> Optional[Self]:
         if location_in_file < 0:
             return None
@@ -195,7 +197,3 @@ class Row:
             row = cls.deserialize(raw_byte_data=row_raw_data)
             row.offset = location_in_file
             return row
-
-
-def find_row_position_to_insert():
-    pass

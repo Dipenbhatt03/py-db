@@ -10,7 +10,6 @@
 3. For searching does a linear search, making it extremely slow
 
 
-
 # Second Commit
 1. Implemented binary tree
 2. Row insert immediately flushes to disk for persistence
