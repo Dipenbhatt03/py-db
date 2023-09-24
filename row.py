@@ -187,7 +187,7 @@ class Row:
         return row
 
     @classmethod
-    @lru_cache(maxsize=1000000)
+    @lru_cache(maxsize=1000)
     def fetch_row(cls, location_in_file: int) -> Optional[Self]:
         if location_in_file < 0:
             return None
