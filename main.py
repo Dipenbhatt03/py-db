@@ -1,15 +1,18 @@
 import logging
-import os
 import re
 from enum import Enum
 from time import time
+from typing import Optional
 
 import config  # noqa
-from row import Row, IntColumn, StrColumn
+from row import IntColumn, Row, StrColumn
 from table import student_table
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
+import sys
+
+sys.setrecursionlimit(100001)
 
 
 class MetaCommandResult(Enum):
@@ -36,7 +39,6 @@ class PrepareStatementResult(Enum):
 
 def do_meta_command(input_buffer):
     if input_buffer == ".exit":
-        flush_to_disk()
         exit(0)
     return MetaCommandResult.COMMAND_NOT_RECOGNIZED
 
@@ -50,35 +52,21 @@ def timing(fun, *args, **kwargs):
     return wrapper
 
 
-def flush_to_disk():
-    with open("dipen.db", "wb") as file:
-        file.write(student_table.raw_data)
-
-
 def execute_insert(row: Row):
     raw_data = row.serialize()
     logger.debug(f"raw data to insert = {raw_data}")
-    student_table.raw_data += raw_data
-    student_table.rows += 1
+    student_table.insert(row=row)
 
 
 @timing
-def execute_read(name_instance: StrColumn = None, id_instance: IntColumn = None):
+def execute_read(name_instance: Optional[StrColumn] = None, id_instance: Optional[IntColumn] = None):
     logger.info(f"{name_instance=} {id_instance=}")
-    matched_rows = 0
-    t = time()
-    # import pdb
-    # pdb.set_trace()
-    for r_id in range(student_table.rows):
-        row_raw_data = student_table.raw_data[r_id * Row.size(): r_id * Row.size() + Row.size()]
-        row_instance = Row.deserialize(raw_byte_data=row_raw_data)
-        if name_instance and row_instance.name.val != name_instance.val:
-            continue
-        if id_instance and row_instance.id.val != id_instance.val:
-            continue
-        logger.info(f"{row_instance}")
-        matched_rows += 1
-    logger.info(f"Total {matched_rows} matched rows out of {student_table.rows} rows read in {time() - t} seconds")
+    rows = student_table.binary_tree.traverse(root_row=student_table.root_row,
+                                              row_id_to_search=id_instance.val if id_instance else None)
+    for row in rows:
+        logger.info(f"{row=}")
+
+    logger.info(f"Total {len(rows)} matched rows out of {student_table.row_count} rows read")
 
 
 """
@@ -98,6 +86,7 @@ def execute_statement(statement: Statement):
         id = match.group(1)
         name = match.group(2)
         row = Row(id=IntColumn(val=id), name=StrColumn(val=name))
+
         execute_insert(row=row)
         # try:
         #
@@ -143,19 +132,19 @@ def main():
     # We implement a basic REPL (Read Execute Print Loop) loop
 
     # on program start, we check if there is a existing file on disk and load it if present
-    if os.path.exists("dipen.db"):
-        with open("dipen.db", "rb") as file:
-            raw_data = file.read()
-            if raw_data:
-                # checksum, raw_table_data = raw_data[:32], raw_data[32:]
-                # assert hashlib.sha256(raw_table_data).digest() == checksum
-
-                student_table.rows = int(len(raw_data) / Row.size())
-                student_table.raw_data = raw_data
+    # if os.path.exists(DATABASE_FILE_NAME):
+    #     with open(DATABASE_FILE_NAME, "rb") as file:
+    #         raw_data = file.read()
+    #         if raw_data:
+    #             # checksum, raw_table_data = raw_data[:32], raw_data[32:]
+    #             # assert hashlib.sha256(raw_table_data).digest() == checksum
+    #
+    #             student_table.rows = int(len(raw_data) / Row.size())
+    #             student_table.raw_data = raw_data
 
     while True:
         input_buffer = input(">")
-        input_buffer = re.sub(r'\s+', ' ', input_buffer.strip())
+        input_buffer = re.sub(r"\s+", " ", input_buffer.strip())
         if input_buffer.startswith("."):
             if do_meta_command(input_buffer) == MetaCommandResult.COMMAND_NOT_RECOGNIZED:
                 logger.error(f"Command {input_buffer} not recognized")

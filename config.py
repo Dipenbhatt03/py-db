@@ -1,4 +1,9 @@
+import sys
 from logging.config import dictConfig
+
+DATABASE_FILE_NAME = "dipen.db"
+# if "unittest" in sys.modules.keys():
+#     DATABASE_FILE_NAME = "test.db"
 
 config = {
     "version": 1,
