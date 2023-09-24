@@ -26,8 +26,9 @@ class BinaryTree:
         if root_row is None:
             root_row = row_to_insert
         elif row_to_insert.id.val <= root_row.id.val:
-            row_to_insert = self.insert(row_to_insert=row_to_insert,
-                                        root_row=Row.fetch_row(root_row.left_child_offset.val))
+            row_to_insert = self.insert(
+                row_to_insert=row_to_insert, root_row=Row.fetch_row(root_row.left_child_offset.val)
+            )
             root_row.left_child_offset.val = row_to_insert.offset
             row_to_insert.parent = root_row
         else:
@@ -38,10 +39,12 @@ class BinaryTree:
             row_to_insert.parent = root_row
         return root_row
 
-
-
-    def traverse(self, root_row: Optional[Row], row_id_to_search: Optional[int] = None,
-                 rows_traversed: Optional[list[Row]] = None) -> list[Row]:
+    def traverse(
+        self,
+        root_row: Optional[Row],
+        row_id_to_search: Optional[int] = None,
+        rows_traversed: Optional[list[Row]] = None,
+    ) -> list[Row]:
         """
         We do traversal in a DFS format
         """
@@ -50,19 +53,17 @@ class BinaryTree:
             rows_traversed = []
         if root_row is None:
             return rows_traversed
-        if (
-                row_id_to_search is not None
-                and root_row.id.val == row_id_to_search
-                or row_id_to_search is None
-        ):
+        if row_id_to_search is not None and root_row.id.val == row_id_to_search or row_id_to_search is None:
             rows_traversed.append(root_row)
         rows_traversed = self.traverse(
-            root_row=Row.fetch_row(root_row.left_child_offset.val), rows_traversed=rows_traversed,
-            row_id_to_search=row_id_to_search
+            root_row=Row.fetch_row(root_row.left_child_offset.val),
+            rows_traversed=rows_traversed,
+            row_id_to_search=row_id_to_search,
         )
         rows_traversed = self.traverse(
-            root_row=Row.fetch_row(root_row.right_child_offset.val), rows_traversed=rows_traversed,
-            row_id_to_search=row_id_to_search
+            root_row=Row.fetch_row(root_row.right_child_offset.val),
+            rows_traversed=rows_traversed,
+            row_id_to_search=row_id_to_search,
         )
         return rows_traversed
 
@@ -73,10 +74,10 @@ class Table(ABC):
 
     Row count(2 bytes) | (Rows)
 
-    ignore the pipe, the data will be contiguously allocated, i.e first 4 byte will be row count which is 4 bytes
+    ignore the pipe, the data will be contiguously allocated, i.e first 2 byte will be row count
     that effectively limits our table size to 2**16 - 1 = 65,535 rows
     First row will always be the root raw, so whenever a table is initialized we will load the root row first
-    by fetching Row.size() bytes from 4th position in file.
+    by fetching Row.size() bytes from 2nd position in file.
 
     Row data format is documented in Row class
 
@@ -151,6 +152,3 @@ class Student(Table):
             self.row_count = struct.unpack("H", row_count_raw)[0]
             if self.row_count > 0:
                 self.root_row = Row.deserialize(file.read(Row.size()))
-
-
-student_table = Student()

@@ -1,7 +1,7 @@
 import logging
 import struct
 from abc import ABC, abstractmethod
-from typing import Optional, Self, Union, Any, cast
+from typing import Any, Optional, Self, Union, cast
 
 import config  # noqa
 from config import DATABASE_FILE_NAME
@@ -58,7 +58,7 @@ class IntColumn(Column):
             assert isinstance(self.val, int), "Int value expected"
         self.val = int(cast(int, self.val))  # the cast is used for static type checker to infer type
         # 2**32 - 1 is the max number that can be represented by a 4 byte signed int
-        assert self.val < 2 ** 32, f"value should be less than {2 ** 32}"
+        assert self.val < 2**32, f"value should be less than {2 ** 32}"
         return self.val
 
     def serialize(self):
@@ -142,39 +142,39 @@ class Row:
     @classmethod
     def size(cls):
         return (
-                IntColumn.SIZE_IN_BYTES
-                + StrColumn.SIZE_IN_BYTES
-                + cls.LEFT_POINTER_SIZE_IN_BYTES
-                + cls.RIGHT_POINTER_SIZE_IN_BYTES
+            IntColumn.SIZE_IN_BYTES
+            + StrColumn.SIZE_IN_BYTES
+            + cls.LEFT_POINTER_SIZE_IN_BYTES
+            + cls.RIGHT_POINTER_SIZE_IN_BYTES
         )
 
     def serialize(self):
         return (
-                self.id.serialize()
-                + self.name.serialize()
-                + self.left_child_offset.serialize()
-                + self.right_child_offset.serialize()
+            self.id.serialize()
+            + self.name.serialize()
+            + self.left_child_offset.serialize()
+            + self.right_child_offset.serialize()
         )
 
     @classmethod
     def deserialize(cls, raw_byte_data: bytes) -> Self:
         logger.debug(f"{raw_byte_data=}")
         raw_id_bytes = raw_byte_data[
-                       IntColumn.OFFSET_FROM_WHERE_DATA_STARTS: IntColumn.OFFSET_FROM_WHERE_DATA_STARTS + IntColumn.SIZE_IN_BYTES
-                       ]
+            IntColumn.OFFSET_FROM_WHERE_DATA_STARTS : IntColumn.OFFSET_FROM_WHERE_DATA_STARTS + IntColumn.SIZE_IN_BYTES
+        ]
         raw_name_bytes = raw_byte_data[
-                         StrColumn.OFFSET_FROM_WHERE_DATA_STARTS: StrColumn.OFFSET_FROM_WHERE_DATA_STARTS + StrColumn.SIZE_IN_BYTES
-                         ]
+            StrColumn.OFFSET_FROM_WHERE_DATA_STARTS : StrColumn.OFFSET_FROM_WHERE_DATA_STARTS + StrColumn.SIZE_IN_BYTES
+        ]
         child_pointer_offset = StrColumn.OFFSET_FROM_WHERE_DATA_STARTS + StrColumn.SIZE_IN_BYTES
         left_child_offset_bytes = raw_byte_data[
-                                  child_pointer_offset: child_pointer_offset + cls.LEFT_POINTER_SIZE_IN_BYTES
-                                  ]
+            child_pointer_offset : child_pointer_offset + cls.LEFT_POINTER_SIZE_IN_BYTES
+        ]
         right_child_offset_bytes = raw_byte_data[
-                                   child_pointer_offset
-                                   + cls.LEFT_POINTER_SIZE_IN_BYTES: child_pointer_offset
-                                                                     + cls.LEFT_POINTER_SIZE_IN_BYTES
-                                                                     + cls.RIGHT_POINTER_SIZE_IN_BYTES
-                                   ]
+            child_pointer_offset
+            + cls.LEFT_POINTER_SIZE_IN_BYTES : child_pointer_offset
+            + cls.LEFT_POINTER_SIZE_IN_BYTES
+            + cls.RIGHT_POINTER_SIZE_IN_BYTES
+        ]
 
         id_instance = IntColumn.deserialize(raw_byte_data=raw_id_bytes)
         name_instance = StrColumn.deserialize(raw_byte_data=raw_name_bytes)

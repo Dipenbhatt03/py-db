@@ -61,8 +61,9 @@ def execute_insert(row: Row):
 @timing
 def execute_read(name_instance: Optional[StrColumn] = None, id_instance: Optional[IntColumn] = None):
     logger.info(f"{name_instance=} {id_instance=}")
-    rows = student_table.binary_tree.traverse(root_row=student_table.root_row,
-                                              row_id_to_search=id_instance.val if id_instance else None)
+    rows = student_table.binary_tree.traverse(
+        root_row=student_table.root_row, row_id_to_search=id_instance.val if id_instance else None
+    )
     for row in rows:
         logger.info(f"{row=}")
 

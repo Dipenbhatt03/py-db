@@ -61,10 +61,10 @@ class TestInsertion(unittest.TestCase):
     @staticmethod
     def raw_representation_of_row(id: int, name: str, left_child_offset=-1, right_child_offset=-1):
         return (
-                id.to_bytes(4, byteorder="little")
-                + name.ljust(32, "\0").encode("UTF-8")
-                + struct.pack("i", left_child_offset)
-                + struct.pack("i", right_child_offset)
+            id.to_bytes(4, byteorder="little")
+            + name.ljust(32, "\0").encode("UTF-8")
+            + struct.pack("i", left_child_offset)
+            + struct.pack("i", right_child_offset)
         )
 
     @staticmethod
@@ -90,9 +90,9 @@ class TestInsertion(unittest.TestCase):
         self.assertEqual(main.student_table.row_count, 2)
 
         raw_data_in_file_to_assert = (
-                (2).to_bytes(2, byteorder="little") +
-                self.raw_representation_of_row(id=5, name="dipen", right_child_offset=46) +
-                self.raw_representation_of_row(id=8, name="chacha")
+            (2).to_bytes(2, byteorder="little")
+            + self.raw_representation_of_row(id=5, name="dipen", right_child_offset=46)
+            + self.raw_representation_of_row(id=8, name="chacha")
         )
         self.assertEqual(raw_data_in_file_to_assert, main.student_table.raw_data())
 
@@ -100,17 +100,17 @@ class TestInsertion(unittest.TestCase):
         self.assertEqual(main.student_table.row_count, 3)
 
         raw_data_in_file_to_assert = (
-                (3).to_bytes(2, byteorder="little") +
-                self.raw_representation_of_row(id=5, name="dipen", right_child_offset=46, left_child_offset=90) +
-                self.raw_representation_of_row(id=8, name="chacha") +
-                self.raw_representation_of_row(id=3, name="chacha part 2")
+            (3).to_bytes(2, byteorder="little")
+            + self.raw_representation_of_row(id=5, name="dipen", right_child_offset=46, left_child_offset=90)
+            + self.raw_representation_of_row(id=8, name="chacha")
+            + self.raw_representation_of_row(id=3, name="chacha part 2")
         )
         self.assertEqual(raw_data_in_file_to_assert, main.student_table.raw_data())
 
     def test_invalid_insert_is_blocked(self):
         self.assertEqual(PrepareStatementResult.SYNTAX_ERROR, self.do_insert_command(id="bad data", name="dipen"))
         with self.assertRaises(AssertionError) as context:
-            self.do_insert_command(id=2 ** 32, name="dipen")
+            self.do_insert_command(id=2**32, name="dipen")
         self.assertEqual("value should be less than 4294967296", context.exception.args[0])
 
         with self.assertRaises(AssertionError) as context:
@@ -125,9 +125,7 @@ class TestInsertion(unittest.TestCase):
         for i in range(num_rows):
             self.assertEqual(PrepareStatementResult.SUCCESS, self.do_insert_command(id=i, name=f"chacha{str(i)}"))
 
-        self.assertEqual(
-            main.student_table.row_count, num_rows
-        )
+        self.assertEqual(main.student_table.row_count, num_rows)
         logger.info(f"Time took {time() - t}")
 
 

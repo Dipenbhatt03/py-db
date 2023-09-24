@@ -1,4 +1,3 @@
-import sys
 from logging.config import dictConfig
 
 DATABASE_FILE_NAME = "dipen.db"
