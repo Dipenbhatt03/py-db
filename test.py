@@ -77,6 +77,8 @@ class TestInsertion(unittest.TestCase):
             pass
         main.student_table = Student()
 
+    # def tearDown(self) -> None:
+
     @staticmethod
     def raw_representation_of_row(id: int, name: str, left_child_offset=-1, right_child_offset=-1):
         return (
@@ -142,16 +144,23 @@ class TestInsertion(unittest.TestCase):
             self.do_insert_command(id=2, name="d" * 33)
         self.assertEqual("Max 32 characters allowed", context.exception.args[0])
 
+
+class TestBulkInsertion(unittest.TestCase):
+    def setUp(self) -> None:
+        with open(DATABASE_FILE_NAME, "wb"):
+            pass
+        main.student_table = Student()
+
     def test_insert_lotta_rows(self):
         num_rows = 10000
         t = time()
         logger.info(f"inserting {num_rows} rows")
-
+        logger.info(f"Existing data {main.student_table.raw_data()}")
         for i in range(num_rows):
-            self.assertEqual(
-                PrepareStatementResult.SUCCESS,
-                self.do_insert_command(id=random.randint(1, 1000000), name=f"mir chacha{str(i)}"),
+            main.student_table.insert(
+                row=Row(id=IntColumn(random.randint(1, 1000000)), name=StrColumn(f"mir chacha{str(i)}"))
             )
+
         self.assertEqual(main.student_table.row_count, num_rows)
 
         # Now we assert the correctness of the tree, by fetching all child and checking whether they are sorted or not

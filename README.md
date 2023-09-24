@@ -26,4 +26,3 @@
            and flush page after that
     3. When scanning binary tree, keep the already scanned nodes in memory.
         So that next time the same row is asked for, we dont have to fetch it from disk
-
