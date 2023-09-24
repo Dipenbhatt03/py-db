@@ -12,7 +12,8 @@ logging.getLogger("main").setLevel(logging.INFO)
 
 class TestBasicInsertion(unittest.TestCase):
     def setUp(self) -> None:
-        main.student_table.raw_data = b''
+        with open("dipen.db", "wb"):
+            pass
 
     def raw_representation_of_row(self, id: int, name: str):
         return id.to_bytes(4, byteorder="little") + name.ljust(32, '\0').encode("UTF-8")
@@ -48,11 +49,11 @@ class TestBasicInsertion(unittest.TestCase):
         logger.info("inserting 1000 rows")
         byte_to_be_expected_to_insert = b''
         t = time()
-        for i in range(1000):
+        for i in range(100000):
             self.assertEqual(PrepareStatementResult.SUCCESS, self.do_insert_command(
                 id=i, name=f"chacha{str(i)}"
             ))
             byte_to_be_expected_to_insert += self.raw_representation_of_row(id=i, name=f"chacha{str(i)}")
             self.assertEqual(byte_to_be_expected_to_insert, main.student_table.raw_data)
-        flush_to_disk()
+        # flush_to_disk()
         logger.info(f"Time took {time() - t}")

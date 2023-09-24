@@ -50,16 +50,16 @@ def timing(fun, *args, **kwargs):
     return wrapper
 
 
-def flush_to_disk():
-    with open("dipen.db", "wb") as file:
-        file.write(student_table.raw_data)
+def flush_to_disk(row_raw_data):
+    with open("dipen.db", "ab") as file:
+        file.write(row_raw_data)
 
 
 def execute_insert(row: Row):
     raw_data = row.serialize()
     logger.debug(f"raw data to insert = {raw_data}")
-    student_table.raw_data += raw_data
     student_table.rows += 1
+    flush_to_disk(row_raw_data=raw_data)
 
 
 @timing
@@ -67,11 +67,9 @@ def execute_read(name_instance: StrColumn = None, id_instance: IntColumn = None)
     logger.info(f"{name_instance=} {id_instance=}")
     matched_rows = 0
     t = time()
-    # import pdb
-    # pdb.set_trace()
+
     for r_id in range(student_table.rows):
-        row_raw_data = student_table.raw_data[r_id * Row.size(): r_id * Row.size() + Row.size()]
-        row_instance = Row.deserialize(raw_byte_data=row_raw_data)
+        row_instance = Row.fetch_row(row_number=r_id)
         if name_instance and row_instance.name.val != name_instance.val:
             continue
         if id_instance and row_instance.id.val != id_instance.val:
@@ -145,13 +143,9 @@ def main():
     # on program start, we check if there is a existing file on disk and load it if present
     if os.path.exists("dipen.db"):
         with open("dipen.db", "rb") as file:
-            raw_data = file.read()
-            if raw_data:
-                # checksum, raw_table_data = raw_data[:32], raw_data[32:]
-                # assert hashlib.sha256(raw_table_data).digest() == checksum
-
-                student_table.rows = int(len(raw_data) / Row.size())
-                student_table.raw_data = raw_data
+            file.seek(0, os.SEEK_END)
+            size = file.tell()
+            student_table.rows = int(size / Row.size())
 
     while True:
         input_buffer = input(">")

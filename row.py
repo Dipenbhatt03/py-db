@@ -7,6 +7,7 @@ import config  # noqa
 
 logger = logging.getLogger(__name__)
 
+
 class Column(ABC):
 
     def __init__(self, val: Union[int, str]):
@@ -15,10 +16,12 @@ class Column(ABC):
 
     def __str__(self):
         return str(self.val)
+
     def __repr__(self):
         if self.val:
             return self.__str__()
         return super().__repr__()
+
     @abstractmethod
     def validate_val(self) -> Union[int, str]:
         ...
@@ -105,3 +108,8 @@ class Row:
         name_instance = StrColumn.deserialize(raw_byte_data=raw_name_bytes)
         return cls(id=id_instance, name=name_instance)
 
+    @classmethod
+    def fetch_row(cls, row_number):
+        with open("dipen.db", "rb") as file:
+            file.seek(cls.size() * row_number)
+            return cls.deserialize(file.read(cls.size()))
