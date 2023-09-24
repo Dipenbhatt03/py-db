@@ -113,7 +113,7 @@ class Table(ABC):
 
     """
 
-    SPACE_USED_FOR_SAVING_ROW_COUNT = 4
+    SPACE_USED_FOR_SAVING_ROW_COUNT = 2
 
     def __init__(self):
         self.root_row: Optional[Row] = None
@@ -142,7 +142,7 @@ class Table(ABC):
             # row nodes whose pointers are updated due to this new insertion
             self.row_count += 1
             file.seek(0)
-            file.write(struct.pack("i", self.row_count))
+            file.write(struct.pack("H", self.row_count))
 
     def insert(self, row: Row):
         row.offset = self.offset_for_a_new_row
@@ -187,7 +187,7 @@ class Student(Table):
             row_count_raw = file.read(self.SPACE_USED_FOR_SAVING_ROW_COUNT)
 
             if row_count_raw:
-                self.row_count = struct.unpack("i", row_count_raw)[0]
+                self.row_count = struct.unpack("H", row_count_raw)[0]
                 if self.row_count > 0:
                     self.root_row = Row.deserialize(file.read(Row.size()))
                     self.root_row.offset = self.SPACE_USED_FOR_SAVING_ROW_COUNT

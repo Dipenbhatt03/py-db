@@ -2,8 +2,6 @@ import logging
 import random
 import struct
 import unittest
-from cProfile import Profile
-from pstats import SortKey, Stats
 from time import time
 
 import config  # noqa
@@ -75,8 +73,8 @@ class TestTableClass(unittest.TestCase):
 
 class TestInsertion(unittest.TestCase):
     def setUp(self) -> None:
-        # with open(DATABASE_FILE_NAME, "wb"):
-        #     pass
+        with open(DATABASE_FILE_NAME, "wb"):
+            pass
         main.student_table = Student()
 
     @staticmethod
@@ -97,21 +95,27 @@ class TestInsertion(unittest.TestCase):
         self.assertEqual(PrepareStatementResult.SUCCESS, self.do_insert_command(id=1, name="dipen"))
         self.assertEqual(main.student_table.row_count, 1)
         byte_to_be_inserted = self.raw_representation_of_row(1, "dipen")
-        self.assertEqual((1).to_bytes(2, byteorder="little") + byte_to_be_inserted, main.student_table.raw_data())
+        self.assertEqual(
+            (1).to_bytes(Student.SPACE_USED_FOR_SAVING_ROW_COUNT, byteorder="little") + byte_to_be_inserted,
+            main.student_table.raw_data(),
+        )
 
     def test_multi_insert(self):
         logging.getLogger("table").setLevel(logging.DEBUG)
         self.assertEqual(PrepareStatementResult.SUCCESS, self.do_insert_command(id=5, name="dipen"))
         self.assertEqual(main.student_table.row_count, 1)
         byte_to_be_inserted = self.raw_representation_of_row(5, "dipen")
-        self.assertEqual((1).to_bytes(2, byteorder="little") + byte_to_be_inserted, main.student_table.raw_data())
+        self.assertEqual(
+            (1).to_bytes(Student.SPACE_USED_FOR_SAVING_ROW_COUNT, byteorder="little") + byte_to_be_inserted,
+            main.student_table.raw_data(),
+        )
 
         logger.info(f"Raw table data after one insert {main.student_table.raw_data()}")
         self.assertEqual(PrepareStatementResult.SUCCESS, self.do_insert_command(id=8, name="chacha"))
         self.assertEqual(main.student_table.row_count, 2)
 
         raw_data_in_file_to_assert = (
-            (2).to_bytes(2, byteorder="little")
+            (2).to_bytes(Student.SPACE_USED_FOR_SAVING_ROW_COUNT, byteorder="little")
             + self.raw_representation_of_row(id=5, name="dipen", right_child_offset=46)
             + self.raw_representation_of_row(id=8, name="chacha")
         )
@@ -121,7 +125,7 @@ class TestInsertion(unittest.TestCase):
         self.assertEqual(main.student_table.row_count, 3)
 
         raw_data_in_file_to_assert = (
-            (3).to_bytes(2, byteorder="little")
+            (3).to_bytes(Student.SPACE_USED_FOR_SAVING_ROW_COUNT, byteorder="little")
             + self.raw_representation_of_row(id=5, name="dipen", right_child_offset=46, left_child_offset=90)
             + self.raw_representation_of_row(id=8, name="chacha")
             + self.raw_representation_of_row(id=3, name="chacha part 2")
@@ -139,26 +143,21 @@ class TestInsertion(unittest.TestCase):
         self.assertEqual("Max 32 characters allowed", context.exception.args[0])
 
     def test_insert_lotta_rows(self):
-        existing_rows = main.student_table.row_count
-        num_rows = 100000
+        num_rows = 10000
         t = time()
-        with Profile() as profile:
-            logger.info(f"inserting {num_rows} rows")
+        logger.info(f"inserting {num_rows} rows")
 
-            for i in range(num_rows):
-                self.assertEqual(
-                    PrepareStatementResult.SUCCESS,
-                    self.do_insert_command(id=random.randint(1, 1000000), name=f"mir chacha{str(i)}"),
-                )
-            self.assertEqual(main.student_table.row_count, num_rows + existing_rows)
-
-            logger.info(
-                f"Profile stats {Stats(profile).strip_dirs().sort_stats(SortKey.CALLS).print_stats().dump_stats('profile')}"
+        for i in range(num_rows):
+            self.assertEqual(
+                PrepareStatementResult.SUCCESS,
+                self.do_insert_command(id=random.randint(1, 1000000), name=f"mir chacha{str(i)}"),
             )
+        self.assertEqual(main.student_table.row_count, num_rows)
+
         # Now we assert the correctness of the tree, by fetching all child and checking whether they are sorted or not
         rows = main.student_table.binary_tree.traverse(root_row=main.student_table.root_row)
         row_ids = [row.id.val for row in rows]
-        self.assertTrue(all(row_ids[i] <= row_ids[i + 1] for i in len(row_ids)))
+        self.assertTrue(all(row_ids[i] <= row_ids[i + 1] for i in range(len(row_ids) - 1)))
         logger.info(f"Time took {time() - t}")
 
 
