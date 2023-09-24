@@ -1,4 +1,10 @@
+import random
+import sys
 from logging.config import dictConfig
+
+DATABASE_FILE_NAME = "dipen.db"
+if "unittest" in sys.modules.keys():
+    DATABASE_FILE_NAME = f"test{random.randint(0,10000)}.db"
 
 config = {
     "version": 1,
