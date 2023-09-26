@@ -1,4 +1,5 @@
 import logging
+import random
 import struct
 import unittest
 from time import time
@@ -156,8 +157,8 @@ class TestBulkInsertion(unittest.TestCase):
         row_ids_to_insert = []
         for i in range(num_rows):
             # logger.info(f"Inserting {i} record")
-            # row_id = random.randint(1, 1000000)
-            row_id = i
+            row_id = random.randint(1, 1000000)
+            # row_id = i
             row_ids_to_insert.append(row_id)
             self.student_table.insert(
                 row=Row(id=IntColumn(row_id), name=StrColumn(f"mir chacha{str(i)}"), table=self.student_table)
