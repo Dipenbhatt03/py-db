@@ -1,13 +1,12 @@
 import logging
 import os
-import struct
 from abc import ABC, abstractmethod
 from typing import Optional, cast
 
-from src.binary_tree import BinaryTree, AvlBinaryTree
+from src.binary_tree import AvlBinaryTree
 from src.config import DATABASE_FD, DATABASE_FILE_NAME
 from src.helper import seek_db_fd
-from src.row import Row, IntColumn, SmallInt
+from src.row import IntColumn, Row, SmallInt
 
 logger = logging.getLogger(__name__)
 
@@ -34,23 +33,19 @@ class Table(ABC):
     def __init__(self):
         self.root_row: Optional[Row] = None
         self.row_count: SmallInt = SmallInt(0)
-        self.load()
         self.binary_tree = AvlBinaryTree(table=self)
         self.cached_rows: dict[IntColumn, Row] = {}
+        self.load()
 
     def get_row(self, offset) -> Row:
-
         if offset not in self.cached_rows:
-            row = Row.fetch_row(location_in_file=offset, table_instance=self)
+            row = Row.fetch_row(location_in_file=offset, table=self)
             if row:
                 self.cached_rows[offset] = row
         else:
             row = self.cached_rows[offset]
 
         return row
-
-    def set_row(self, offset: IntColumn, row: Row):
-        self.cached_rows[offset] = row
 
     @abstractmethod
     def load(self):
@@ -102,10 +97,6 @@ class Table(ABC):
 
         # Due to re-balancing, root might have been changed
 
-    def set_root_row(self):
-        seek_db_fd(self.ROOT_ROW_ADDRESS_OFFSET_IN_FILE)
-        self.root_row = Row.deserialize(raw_byte_data=DATABASE_FD.read(self.SPACE_USED_FOR_ROOT_ROW_ADDRESS))
-
     def raw_data(self) -> bytes:
         """
         Helper method used in test to get the raw representation of a table in file
@@ -125,13 +116,11 @@ class Table(ABC):
         during traversing the tree.
         """
         return IntColumn(
-            self.row_count * Row.size() + self.SPACE_USED_FOR_SAVING_ROW_COUNT + self.SPACE_USED_FOR_ROOT_ROW_ADDRESS)
+            self.row_count * Row.size() + self.SPACE_USED_FOR_SAVING_ROW_COUNT + self.SPACE_USED_FOR_ROOT_ROW_ADDRESS
+        )
 
 
 class Student(Table):
-    def __init__(self):
-        super().__init__()
-
     def load(self):
         if not os.path.exists(DATABASE_FILE_NAME):
             # Create the file if it doesn't exist
@@ -145,7 +134,9 @@ class Student(Table):
         if row_count_raw:
             self.row_count = SmallInt.deserialize(raw_byte_data=row_count_raw)
             if self.row_count > 0:
-                self.set_root_row()
+                self.root_row = self.get_row(
+                    offset=IntColumn.deserialize(DATABASE_FD.read(self.SPACE_USED_FOR_ROOT_ROW_ADDRESS))
+                )
 
         logger.debug(f"{row_count_raw=} {self.row_count=}")
 

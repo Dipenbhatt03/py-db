@@ -1,7 +1,6 @@
 import logging
 import struct
 from abc import ABC, abstractmethod
-from functools import lru_cache, cached_property
 from typing import Any, Optional, Self, Union, cast
 
 from src.config import DATABASE_FD
@@ -59,7 +58,7 @@ class IntColumn(Column, int):
             assert isinstance(self.val, int), "Int value expected"
         self.val = int(cast(int, self.val))  # the cast is used for static type checker to infer type
         # 2**32 - 1 is the max number that can be represented by a 4 byte signed int
-        assert self.val < 2 ** 32, f"value should be less than {2 ** 32}"
+        assert self.val < 2**32, f"value should be less than {2 ** 32}"
         return self.val
 
     def serialize(self):
@@ -85,7 +84,7 @@ class SmallInt(Column, int):
             assert isinstance(self.val, int), "Int value expected"
         self.val = int(cast(int, self.val))  # the cast is used for static type checker to infer type
         # 2**32 - 1 is the max number that can be represented by a 4 byte signed int
-        assert self.val < 2 ** 16, f"value should be less than {2 ** 16}"
+        assert self.val < 2**16, f"value should be less than {2 ** 16}"
         return self.val
 
     def serialize(self):
@@ -146,7 +145,10 @@ class Row:
     SUBTREE_HEIGHT_IN_BYTES = 2
 
     OFFSET_WHERE_SUBTREE_HEIGHT_DATA_STARTS = (
-            StrColumn.OFFSET_FROM_WHERE_DATA_STARTS + StrColumn.SIZE_IN_BYTES + LEFT_POINTER_SIZE_IN_BYTES + RIGHT_POINTER_SIZE_IN_BYTES
+        StrColumn.OFFSET_FROM_WHERE_DATA_STARTS
+        + StrColumn.SIZE_IN_BYTES
+        + LEFT_POINTER_SIZE_IN_BYTES
+        + RIGHT_POINTER_SIZE_IN_BYTES
     )
 
     def __init__(self, id: IntColumn, name: StrColumn, table):
@@ -154,8 +156,7 @@ class Row:
         assert isinstance(name, StrColumn)
         self.id = id
         self.name = name
-        self.offset: Optional[IntColumn] = None
-        self.parent: Optional[Self] = None
+        self.offset: IntColumn = IntColumn(-1)
         self.left_child_offset: IntColumn = IntColumn(-1)
         self.right_child_offset: IntColumn = IntColumn(-1)
         self.subtree_height: SmallInt = SmallInt(1)
@@ -198,48 +199,46 @@ class Row:
     @classmethod
     def size(cls):
         return (
-                IntColumn.SIZE_IN_BYTES
-                + StrColumn.SIZE_IN_BYTES
-                + cls.LEFT_POINTER_SIZE_IN_BYTES
-                + cls.RIGHT_POINTER_SIZE_IN_BYTES
-                + cls.SUBTREE_HEIGHT_IN_BYTES
-
+            IntColumn.SIZE_IN_BYTES
+            + StrColumn.SIZE_IN_BYTES
+            + cls.LEFT_POINTER_SIZE_IN_BYTES
+            + cls.RIGHT_POINTER_SIZE_IN_BYTES
+            + cls.SUBTREE_HEIGHT_IN_BYTES
         )
 
     def serialize(self):
         return (
-                self.id.serialize()
-                + self.name.serialize()
-                + self.left_child_offset.serialize()
-                + self.right_child_offset.serialize()
-                + self.subtree_height.serialize()
-
+            self.id.serialize()
+            + self.name.serialize()
+            + self.left_child_offset.serialize()
+            + self.right_child_offset.serialize()
+            + self.subtree_height.serialize()
         )
 
     @classmethod
-    def deserialize(cls, raw_byte_data: bytes, table_instance) -> Self:
+    def deserialize(cls, raw_byte_data: bytes, table) -> Self:
         logger.debug(f"{raw_byte_data=}")
         raw_id_bytes = raw_byte_data[
-                       IntColumn.OFFSET_FROM_WHERE_DATA_STARTS: IntColumn.OFFSET_FROM_WHERE_DATA_STARTS + IntColumn.SIZE_IN_BYTES
-                       ]
+            IntColumn.OFFSET_FROM_WHERE_DATA_STARTS : IntColumn.OFFSET_FROM_WHERE_DATA_STARTS + IntColumn.SIZE_IN_BYTES
+        ]
         raw_name_bytes = raw_byte_data[
-                         StrColumn.OFFSET_FROM_WHERE_DATA_STARTS: StrColumn.OFFSET_FROM_WHERE_DATA_STARTS + StrColumn.SIZE_IN_BYTES
-                         ]
+            StrColumn.OFFSET_FROM_WHERE_DATA_STARTS : StrColumn.OFFSET_FROM_WHERE_DATA_STARTS + StrColumn.SIZE_IN_BYTES
+        ]
         child_pointer_offset = StrColumn.OFFSET_FROM_WHERE_DATA_STARTS + StrColumn.SIZE_IN_BYTES
         left_child_offset_bytes = raw_byte_data[
-                                  child_pointer_offset: child_pointer_offset + cls.LEFT_POINTER_SIZE_IN_BYTES
-                                  ]
+            child_pointer_offset : child_pointer_offset + cls.LEFT_POINTER_SIZE_IN_BYTES
+        ]
         right_child_offset_bytes = raw_byte_data[
-                                   child_pointer_offset
-                                   + cls.LEFT_POINTER_SIZE_IN_BYTES: child_pointer_offset
-                                                                     + cls.LEFT_POINTER_SIZE_IN_BYTES
-                                                                     + cls.RIGHT_POINTER_SIZE_IN_BYTES
-                                   ]
+            child_pointer_offset
+            + cls.LEFT_POINTER_SIZE_IN_BYTES : child_pointer_offset
+            + cls.LEFT_POINTER_SIZE_IN_BYTES
+            + cls.RIGHT_POINTER_SIZE_IN_BYTES
+        ]
 
         subtree_height_offset_bytes = raw_byte_data[
-                                      cls.OFFSET_WHERE_SUBTREE_HEIGHT_DATA_STARTS: cls.OFFSET_WHERE_SUBTREE_HEIGHT_DATA_STARTS
-                                                                                   + cls.SUBTREE_HEIGHT_IN_BYTES
-                                      ]
+            cls.OFFSET_WHERE_SUBTREE_HEIGHT_DATA_STARTS : cls.OFFSET_WHERE_SUBTREE_HEIGHT_DATA_STARTS
+            + cls.SUBTREE_HEIGHT_IN_BYTES
+        ]
 
         id_instance = IntColumn.deserialize(raw_byte_data=raw_id_bytes)
         name_instance = StrColumn.deserialize(raw_byte_data=raw_name_bytes)
@@ -247,7 +246,7 @@ class Row:
         right_child_offset_bytes_instance = IntColumn.deserialize(raw_byte_data=right_child_offset_bytes)
         subtree_height_instance = SmallInt.deserialize(raw_byte_data=subtree_height_offset_bytes)
 
-        row = cls(id=id_instance, name=name_instance, table=table_instance)
+        row = cls(id=id_instance, name=name_instance, table=table)
         row.left_child_offset = left_child_offset_bytes_instance
         row.right_child_offset = right_child_offset_bytes_instance
         row.subtree_height = subtree_height_instance
@@ -256,13 +255,13 @@ class Row:
 
     @classmethod
     # @lru_cache(maxsize=10000)
-    def fetch_row(cls, location_in_file: int, table_instance) -> Optional[Self]:
+    def fetch_row(cls, location_in_file: int, table) -> Optional[Self]:
         if location_in_file < 0:
             return None
         # t1 = time()
         seek_db_fd(location_in_file)
         row_raw_data = DATABASE_FD.read(cls.size())
-        row = cls.deserialize(raw_byte_data=row_raw_data, table_instance=table_instance)
+        row = cls.deserialize(raw_byte_data=row_raw_data, table=table)
         row.offset = IntColumn(location_in_file)
         return row
 

@@ -18,5 +18,3 @@ def timing(fun, *args, **kwargs):
 def seek_db_fd(offset):
     if DATABASE_FD.tell() != offset:
         DATABASE_FD.seek(offset)
-
-

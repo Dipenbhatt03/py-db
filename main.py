@@ -76,7 +76,7 @@ def execute_statement(statement: Statement):
             return PrepareStatementResult.SYNTAX_ERROR
         id = match.group(1)
         name = match.group(2)
-        row = Row(id=IntColumn(val=id), name=StrColumn(val=name), table=student_table)
+        row = Row(id=IntColumn(id), name=StrColumn(name), table=student_table)
 
         execute_insert(row=row)
         # try:
