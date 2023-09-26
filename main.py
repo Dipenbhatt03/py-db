@@ -1,12 +1,11 @@
 import logging
 import re
 from enum import Enum
-from time import time
 from typing import Optional
 
-import config  # noqa
-from row import IntColumn, Row, StrColumn
-from table import student_table
+from src.helper import timing
+from src.row import IntColumn, Row, StrColumn
+from src.table import student_table
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -43,15 +42,6 @@ def do_meta_command(input_buffer):
     return MetaCommandResult.COMMAND_NOT_RECOGNIZED
 
 
-def timing(fun, *args, **kwargs):
-    def wrapper(*args, **kwargs):
-        t = time()
-        fun(*args, **kwargs)
-        logger.info(f"Executed in {time() - t} seconds")
-
-    return wrapper
-
-
 def execute_insert(row: Row):
     raw_data = row.serialize()
     logger.debug(f"raw data to insert = {raw_data}")
@@ -86,7 +76,7 @@ def execute_statement(statement: Statement):
             return PrepareStatementResult.SYNTAX_ERROR
         id = match.group(1)
         name = match.group(2)
-        row = Row(id=IntColumn(val=id), name=StrColumn(val=name))
+        row = Row(id=IntColumn(val=id), name=StrColumn(val=name), table=student_table)
 
         execute_insert(row=row)
         # try:
