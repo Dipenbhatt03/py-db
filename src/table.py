@@ -35,6 +35,7 @@ class Table(ABC):
         self.row_count: SmallInt = SmallInt(0)
         self.binary_tree = AvlBinaryTree(table=self)
         self.cached_rows: dict[IntColumn, Row] = {}
+        self.dirty_rows: set[Row] = set()
         self.load()
 
     def get_row(self, offset) -> Row:
@@ -54,7 +55,7 @@ class Table(ABC):
         """
         ...
 
-    def flush_rows_to_disk(self, rows: list[Row]):
+    def flush_rows_to_disk(self, rows: set[Row]):
         for row in rows:
             assert row.offset is not None, f"{row=} offset is not set"
 
@@ -75,27 +76,17 @@ class Table(ABC):
         row.offset = self.offset_for_a_new_row
 
         self.cached_rows[row.offset] = row
-        logger.debug(f"row {row} {row.offset=}")
+
         self.binary_tree._row_to_insert = cast(Row, row)
-        self.binary_tree.insert(row_to_insert=row, root_row=self.root_row)
-
-        if self.root_row is None:
-            self.root_row = row
-
-        dirty_rows = [row for row in self.cached_rows.values() if row.is_dirty]
-        self.flush_rows_to_disk(rows=dirty_rows)
-
-        if self.root_row.is_dirty:
-            # Root row has been updated, so we need to update the root_row_address in file
-            seek_db_fd(self.ROOT_ROW_ADDRESS_OFFSET_IN_FILE)
+        existing_root_row = self.root_row
+        self.root_row = self.binary_tree.insert(row_to_insert=row, root_row=self.root_row)
+        if self.root_row != existing_root_row:
+            DATABASE_FD.seek(self.SPACE_USED_FOR_SAVING_ROW_COUNT)
             DATABASE_FD.write(self.root_row.offset.serialize())
+        logger.debug(f"{self.root_row=} {row=} {row.offset=} {self.dirty_rows=}")
 
-        for row in dirty_rows:
-            row.is_dirty = False
-        dirty_rows = [row for row in self.cached_rows.values() if row.is_dirty]
-        assert len(dirty_rows) == 0, "Dirty rows not flushed"
-
-        # Due to re-balancing, root might have been changed
+        self.flush_rows_to_disk(rows=self.dirty_rows)
+        self.dirty_rows = set()
 
     def raw_data(self) -> bytes:
         """

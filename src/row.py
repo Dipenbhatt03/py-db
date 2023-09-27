@@ -66,7 +66,7 @@ class IntColumn(Column, int):
 
     @classmethod
     def deserialize(cls, raw_byte_data: bytes):
-        logger.debug(f"int deserialize {raw_byte_data=}")
+        # logger.debug(f"int deserialize {raw_byte_data=}")
 
         return cls(struct.unpack("i", raw_byte_data)[0])
 
@@ -92,7 +92,7 @@ class SmallInt(Column, int):
 
     @classmethod
     def deserialize(cls, raw_byte_data: bytes):
-        logger.debug(f"int deserialize {raw_byte_data=}")
+        # logger.debug(f"int deserialize {raw_byte_data=}")
 
         return cls(struct.unpack("H", raw_byte_data)[0])
 
@@ -120,7 +120,7 @@ class StrColumn(Column):
 
     @classmethod
     def deserialize(cls, raw_byte_data: bytes):
-        logger.debug(f"str deserialize {raw_byte_data=}")
+        # logger.debug(f"str deserialize {raw_byte_data=}")
         unpacked_data = struct.unpack(f"{cls.SIZE_IN_BYTES}s", raw_byte_data)[0]
 
         return cls(val=unpacked_data.decode("UTF-8").rstrip("\0"))
@@ -161,13 +161,12 @@ class Row:
         self.right_child_offset: IntColumn = IntColumn(-1)
         self.subtree_height: SmallInt = SmallInt(1)
         self.table = table
-        self.is_dirty = True  # This flag is true when this row has been updated and needs to be flushed
 
     def __str__(self):
-        return f"id={self.id} name={self.name}"
+        return f"(id={self.id} name={self.name} offset={self.offset})"
 
     def __repr__(self):
-        return f"id={self.id} name={self.name}"
+        return f"(id={self.id} name={self.name} offset={self.offset})"
 
     def __hash__(self):
         assert self.offset is not None
@@ -217,7 +216,7 @@ class Row:
 
     @classmethod
     def deserialize(cls, raw_byte_data: bytes, table) -> Self:
-        logger.debug(f"{raw_byte_data=}")
+        # logger.debug(f"{raw_byte_data=}")
         raw_id_bytes = raw_byte_data[
             IntColumn.OFFSET_FROM_WHERE_DATA_STARTS : IntColumn.OFFSET_FROM_WHERE_DATA_STARTS + IntColumn.SIZE_IN_BYTES
         ]
@@ -250,7 +249,6 @@ class Row:
         row.left_child_offset = left_child_offset_bytes_instance
         row.right_child_offset = right_child_offset_bytes_instance
         row.subtree_height = subtree_height_instance
-        row.is_dirty = False  # when we fetch a row from file, it hasn't been updated hence not a dirty row
         return row
 
     @classmethod

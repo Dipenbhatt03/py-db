@@ -150,7 +150,7 @@ class TestBulkInsertion(unittest.TestCase):
         DATABASE_FD.flush()
 
     def test_insert_lotta_rows(self):
-        num_rows = 10000
+        num_rows = 65535
         t = time()
         logger.info(f"inserting {num_rows} rows")
         logger.info(f"Existing data {main.student_table.raw_data()}")
@@ -289,13 +289,13 @@ class TestInsertIntoBinaryTree(unittest.TestCase):
         """
             Asserting the child pointers of every node
             Basically tree should be like
-            
+
                         4
                     /       \
                 2               5
             /       \               \
             1        3                  6
-            
+
         """
         self.assertEqual(self.student_table.root_row, row4_to_insert)
         self.assertEqual(row4_to_insert.left_child, row2_to_insert)
