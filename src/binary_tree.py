@@ -111,8 +111,7 @@ class AvlBinaryTree(BinaryTree):
         left_child_row = root_row.left_child
         root_row.left_child_offset = left_child_row.right_child_offset
         left_child_row.right_child_offset = root_row.offset
-        # left_child_row.parent = root_row.parent
-        # root_row.parent = left_child_row
+
         # updating the heights
         root_row.subtree_height = SmallInt(max(root_row.right_subtree_height, root_row.left_subtree_height) + 1)
 
@@ -128,11 +127,8 @@ class AvlBinaryTree(BinaryTree):
             + 1
         )
 
-        left_child_row.is_dirty = True
-        root_row.is_dirty = True
-        if root_row == self.table.root_row:
-            self.table.root_row = left_child_row
-            logger.info(f"Root row updated {root_row} -> {self.table.root_row}")
+        self.table.dirty_rows.add(left_child_row)
+        self.table.dirty_rows.add(root_row)
 
         return left_child_row
 
@@ -142,8 +138,6 @@ class AvlBinaryTree(BinaryTree):
         right_child_row = root_row.right_child
         root_row.right_child_offset = right_child_row.left_child_offset
         right_child_row.left_child_offset = root_row.offset
-        # right_child_row.parent = root_row.parent
-        # root_row.parent = right_child_row
 
         # updating heights
         root_row.subtree_height = SmallInt(max(root_row.right_subtree_height, root_row.left_subtree_height) + 1)
@@ -151,11 +145,9 @@ class AvlBinaryTree(BinaryTree):
         right_child_row.subtree_height = SmallInt(
             max(right_child_row.right_subtree_height, root_row.subtree_height) + 1
         )
-        root_row.is_dirty = True
-        right_child_row.is_dirty = True
-        if root_row == self.table.root_row:
-            self.table.root_row = right_child_row
-            logger.info(f"Root row updated {root_row} -> {self.table.root_row}")
+
+        self.table.dirty_rows.add(right_child_row)
+        self.table.dirty_rows.add(root_row)
         return right_child_row
 
     def insert(self, row_to_insert: Row, root_row: Row):
@@ -164,19 +156,22 @@ class AvlBinaryTree(BinaryTree):
 
         if root_row is None:
             root_row = row_to_insert
+            self.table.dirty_rows.add(root_row)
 
         elif row_to_insert.id.val <= root_row.id.val:
             row_to_insert = self.insert(row_to_insert=row_to_insert, root_row=root_row.left_child)
             if root_row.left_child_offset != row_to_insert.offset:
                 root_row.left_child_offset = row_to_insert.offset
-                root_row.is_dirty = True
+
+                self.table.dirty_rows.add(root_row)
             # row_to_insert.parent = root_row
             root_row.subtree_height = SmallInt(max(root_row.subtree_height, root_row.left_subtree_height + 1))
         else:
             row_to_insert = self.insert(row_to_insert=row_to_insert, root_row=root_row.right_child)
             if root_row.right_child_offset != row_to_insert.offset:
                 root_row.right_child_offset = row_to_insert.offset
-                root_row.is_dirty = True
+
+                self.table.dirty_rows.add(root_row)
             # row_to_insert.parent = root_row
             root_row.subtree_height = SmallInt(max(root_row.subtree_height, root_row.right_subtree_height + 1))
 
