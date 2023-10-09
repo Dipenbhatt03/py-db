@@ -76,7 +76,7 @@ def execute_statement(statement: Statement):
             return PrepareStatementResult.SYNTAX_ERROR
         id = match.group(1)
         name = match.group(2)
-        row = Row(id=IntColumn(id), name=StrColumn(name), table=student_table)
+        row = Row(id=IntColumn(id), name=StrColumn(name))
 
         execute_insert(row=row)
         # try:
@@ -145,7 +145,7 @@ def main():
                 case PrepareStatementResult.STATEMENT_NOT_RECOGNIZED:
                     logger.error(f"Statement {input_buffer} not recognized")
                 case PrepareStatementResult.SYNTAX_ERROR:
-                    logger.error(f"Syntax error")
+                    logger.error("Syntax error")
                 case _:
                     continue
         except AssertionError as e:

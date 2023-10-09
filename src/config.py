@@ -8,16 +8,20 @@ if "unittest" in sys.modules.keys():
     if os.path.exists(DATABASE_FILE_NAME):
         os.remove(DATABASE_FILE_NAME)
 
+if not os.path.exists(DATABASE_FILE_NAME):
+    # Create the file if it doesn't exist
+    with open(DATABASE_FILE_NAME, "wb"):
+        pass
+#
+# def open_db_connection():
+#     if not os.path.exists(DATABASE_FILE_NAME):
+#         # Create the file if it doesn't exist
+#         with open(DATABASE_FILE_NAME, "wb"):
+#             pass
+#     return open(DATABASE_FILE_NAME, "r+b")
 
-def open_db_connection():
-    if not os.path.exists(DATABASE_FILE_NAME):
-        # Create the file if it doesn't exist
-        with open(DATABASE_FILE_NAME, "wb"):
-            pass
-    return open(DATABASE_FILE_NAME, "r+b")
 
-
-DATABASE_FD = open_db_connection()
+# DATABASE_FD = open_db_connection()
 
 config = {
     "version": 1,

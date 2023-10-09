@@ -1,7 +1,8 @@
 import logging
 from typing import Optional, cast
 
-from src.row import Row, SmallInt
+from src.data_types import S2Int
+from src.row import Row
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +22,7 @@ class BinaryTree:
         self._row_to_insert: Optional[Row] = None
         self.table = table
 
-    def insert(self, row_to_insert: Row, root_row: Row):
+    def insert(self, row_to_insert: Row, root_row: Optional[Row]):
         logger.debug(f"{row_to_insert=} {root_row=}")
         if root_row is None:
             root_row = row_to_insert
@@ -95,7 +96,7 @@ class BinaryTree:
 
 
 class AvlBinaryTree(BinaryTree):
-    def right_rotate(self, root_row: Row) -> Row:
+    def right_rotate(self, root_row: Optional[Row]) -> Optional[Row]:
         """
         NOTE: Care needs to be taken when we are fetching left or right child.
         Because, the property left_child/right_child of Row class fetch the children from
@@ -107,15 +108,17 @@ class AvlBinaryTree(BinaryTree):
         left_child/right_child assuming its gonna return the same memory location everytime.
 
         """
+        if root_row is None:
+            return root_row
         logger.debug(f"Right rotation around {root_row=}")
-        left_child_row = root_row.left_child
+        left_child_row = cast(Row, root_row.left_child)  # casting to make mypy happy
         root_row.left_child_offset = left_child_row.right_child_offset
         left_child_row.right_child_offset = root_row.offset
 
         # updating the heights
-        root_row.subtree_height = SmallInt(max(root_row.right_subtree_height, root_row.left_subtree_height) + 1)
+        root_row.subtree_height = S2Int(max(root_row.right_subtree_height, root_row.left_subtree_height) + 1)
 
-        left_child_row.subtree_height = SmallInt(
+        left_child_row.subtree_height = S2Int(
             max(
                 left_child_row.left_subtree_height,
                 # Pay attention here, we dont use left_child_row.right_child.offset which should technically be
@@ -132,40 +135,38 @@ class AvlBinaryTree(BinaryTree):
 
         return left_child_row
 
-    def left_rotate(self, root_row: Row) -> Row:
+    def left_rotate(self, root_row: Optional[Row]) -> Optional[Row]:
+        if root_row is None:
+            return root_row
         logger.debug(f"Left rotation around {root_row=}")
         # Same care needs to be taken during left rotation as is noted down in right rotation
-        right_child_row = root_row.right_child
+        right_child_row = cast(Row, root_row.right_child)  # casting to make mypy happy
         root_row.right_child_offset = right_child_row.left_child_offset
         right_child_row.left_child_offset = root_row.offset
 
         # updating heights
-        root_row.subtree_height = SmallInt(max(root_row.right_subtree_height, root_row.left_subtree_height) + 1)
+        root_row.subtree_height = S2Int(max(root_row.right_subtree_height, root_row.left_subtree_height) + 1)
 
-        right_child_row.subtree_height = SmallInt(
-            max(right_child_row.right_subtree_height, root_row.subtree_height) + 1
-        )
+        right_child_row.subtree_height = S2Int(max(right_child_row.right_subtree_height, root_row.subtree_height) + 1)
 
         self.table.dirty_rows.add(right_child_row)
         self.table.dirty_rows.add(root_row)
         return right_child_row
 
-    def insert(self, row_to_insert: Row, root_row: Row):
+    def insert(self, row_to_insert: Row, root_row: Optional[Row]) -> Row:
         # sourcery skip: hoist-similar-statement-from-if, hoist-statement-from-if, remove-pass-body
         logger.debug(f"{row_to_insert=} {root_row=}")
-
         if root_row is None:
             root_row = row_to_insert
-            self.table.dirty_rows.add(root_row)
+            # self.table.dirty_rows.add(root_row)
 
         elif row_to_insert.id.val <= root_row.id.val:
             row_to_insert = self.insert(row_to_insert=row_to_insert, root_row=root_row.left_child)
             if root_row.left_child_offset != row_to_insert.offset:
                 root_row.left_child_offset = row_to_insert.offset
-
                 self.table.dirty_rows.add(root_row)
             # row_to_insert.parent = root_row
-            root_row.subtree_height = SmallInt(max(root_row.subtree_height, root_row.left_subtree_height + 1))
+            root_row.subtree_height = S2Int(max(root_row.subtree_height, root_row.left_subtree_height + 1))
         else:
             row_to_insert = self.insert(row_to_insert=row_to_insert, root_row=root_row.right_child)
             if root_row.right_child_offset != row_to_insert.offset:
@@ -173,7 +174,7 @@ class AvlBinaryTree(BinaryTree):
 
                 self.table.dirty_rows.add(root_row)
             # row_to_insert.parent = root_row
-            root_row.subtree_height = SmallInt(max(root_row.subtree_height, root_row.right_subtree_height + 1))
+            root_row.subtree_height = S2Int(max(root_row.subtree_height, root_row.right_subtree_height + 1))
 
         balance_factor = root_row.left_subtree_height - root_row.right_subtree_height
         if balance_factor > 1:
@@ -184,16 +185,16 @@ class AvlBinaryTree(BinaryTree):
                 # a left-left case
                 root_row = self.right_rotate(root_row=root_row)
             else:
-                # a left-right case
-                root_row.left_child_offset = self.left_rotate(root_row=root_row.left_child).offset
+                if temp_root := self.left_rotate(root_row=root_row.left_child):
+                    root_row.left_child_offset = temp_root.offset
                 root_row = self.right_rotate(root_row=root_row)
 
         elif balance_factor < -1:
             # right imbalance case, Now we figure out whether this is a right-right case or right-left case
             # by comparing the id of inserted row with right child of the root row
             if cast(Row, self._row_to_insert).id.val <= root_row.right_child.id.val:
-                # a Right-left case
-                root_row.right_child_offset = self.right_rotate(root_row=root_row.right_child).offset
+                if temp_root := self.right_rotate(root_row=root_row.right_child):
+                    root_row.right_child_offset = temp_root.offset
                 root_row = self.left_rotate(root_row=root_row)
             else:
                 # A Right-Right case
