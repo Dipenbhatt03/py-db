@@ -33,7 +33,8 @@ class Table(ABC):
     def __init__(self):
         self.root_row: Optional[Row] = None
         self.row_count: US2Int = US2Int(0)
-        self.binary_tree = AvlBinaryTree(table=self)
+        self.binary_tree = AvlBinaryTree()
+
         self.load()
 
     @abstractmethod
@@ -46,9 +47,18 @@ class Table(ABC):
     def insert(self, row: Row):
         row.offset = self.offset_for_a_new_row
         self.binary_tree._row_to_insert = cast(Row, row)
+        previous_root_row_address = self.root_row.offset if self.root_row else None
         self.root_row = self.binary_tree.insert(row_to_insert=row, root_row=self.root_row)
-        pager.pager_flush()
         self.row_count = US2Int(self.row_count + 1)
+        pager.page_write(offset=0, bytes_to_write=self.row_count.serialize())
+        if self.root_row.offset != previous_root_row_address:
+            pager.page_write(
+                offset=self.SPACE_USED_FOR_SAVING_ROW_COUNT, bytes_to_write=self.root_row.offset.serialize()
+            )
+        pager.mark_page_dirty(page_num=pager.meta_page.p_no)
+
+        # This explicit flush call might be replaced in future by a commit command, as it should be
+        pager.pager_flush()
 
     @property
     def offset_for_a_new_row(self):
@@ -64,14 +74,12 @@ class Table(ABC):
 
 class Student(Table):
     def load(self):
-        meta_page = pager.get_page(page_num=US2Int(0))
-
-        row_count_raw = meta_page.data[: self.SPACE_USED_FOR_SAVING_ROW_COUNT]
+        row_count_raw = pager.meta_page.data[: self.SPACE_USED_FOR_SAVING_ROW_COUNT]
         if row_count_raw:
             self.row_count = US2Int.deserialize(raw_byte_data=row_count_raw)
             if self.row_count > 0:
-                row_offset = US2Int.deserialize(
-                    raw_byte_data=meta_page.data[
+                row_offset = S4Int.deserialize(
+                    raw_byte_data=pager.meta_page.data[
                         self.SPACE_USED_FOR_SAVING_ROW_COUNT : self.SPACE_USED_FOR_SAVING_ROW_COUNT
                         + self.SPACE_USED_FOR_ROOT_ROW_ADDRESS
                     ]

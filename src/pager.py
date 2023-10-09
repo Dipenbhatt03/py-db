@@ -39,13 +39,41 @@ class Page:
 class Pager:
     TABLE_MAX_PAGES = 1000
 
+    def _open_db_file(self):
+        if not os.path.exists(self.db_file_name):
+            # Create the file if it doesn't exist
+            with open(self.db_file_name, "wb"):
+                pass
+        return open(self.db_file_name, "r+b")
+
     def __init__(self):
-        self.fd = open(DATABASE_FILE_NAME, "r+b")
+        self.db_file_name = DATABASE_FILE_NAME
+        self.fd = self._open_db_file()
+        self.pages: list[Page] = []
+        self.dirty_pages: set[Page] = set()
+        self.open()
+
+    def open(self):
+        if self.fd.closed:
+            self.fd = self._open_db_file()
         # Right now, this pages variable is the page cache where we can hold the entirety of database in memory on
         # demand. But obviously which is not going to be the case later, we will have a fix amount of cache size and
         # will need some kinda eviction process.
         self.pages: list[Page] = [Page(p_no=US2Int(idx)) for idx, _ in enumerate(range(self.TABLE_MAX_PAGES))]
-        self.dirty_pages: set[Page] = set()
+
+    def close(self):
+        self.fd.close()
+        self.pages = []
+        self.dirty_pages = set()
+
+    @property
+    def meta_page(self) -> Page:
+        return self.get_page(page_num=US2Int(0))
+
+    def mark_page_dirty(self, page_num: US2Int):
+        page = self.get_page(page_num=page_num)
+        page.state = Page.StateChoice.DIRTY
+        self.dirty_pages.add(page)
 
     def get_page(self, page_num: US2Int) -> Page:
         assert page_num < self.TABLE_MAX_PAGES, "Tried fetching page out of bound"
@@ -98,7 +126,7 @@ class Pager:
             self.fd.write(page.data)
         self.fd.flush()
         os.fsync(self.fd)
-        for page in self.pages:
+        for page in self.dirty_pages:
             page.state = Page.StateChoice.CLEAN
         self.dirty_pages = set()
 

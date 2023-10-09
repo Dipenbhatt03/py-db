@@ -107,8 +107,14 @@ class Row:
             + self.subtree_height.serialize()
         )
 
+    def write_to_page(self):
+        pager.page_write(offset=self.offset, bytes_to_write=self.serialize())
+
+    def refresh_from_disk(self):
+        return self.fetch_row(location_in_file=self.offset)
+
     @classmethod
-    def deserialize(cls, raw_byte_data: bytes) -> Self:
+    def deserialize(cls, raw_byte_data: bytes, offset: S4Int) -> Self:
         # logger.debug(f"{raw_byte_data=}")
         raw_id_bytes = raw_byte_data[
             IntColumn.OFFSET_FROM_WHERE_DATA_STARTS : IntColumn.OFFSET_FROM_WHERE_DATA_STARTS + IntColumn.SIZE_IN_BYTES
@@ -142,13 +148,15 @@ class Row:
         row.left_child_offset = left_child_offset_bytes_instance
         row.right_child_offset = right_child_offset_bytes_instance
         row.subtree_height = subtree_height_instance
+        row.offset = offset
         return row
 
     @classmethod
-    # @lru_cache(maxsize=10000)
     def fetch_row(cls, location_in_file: int) -> Optional[Self]:
         if location_in_file < 0:
             return None
         page_num, page_offset = pager.get_pager_location_from_offset(offset=location_in_file)
         page = pager.get_page(page_num=page_num)
-        return cls.deserialize(page.data[page_offset : page_offset + Row.size()])
+        return cls.deserialize(
+            raw_byte_data=page.data[page_offset : page_offset + Row.size()], offset=S4Int(location_in_file)
+        )
