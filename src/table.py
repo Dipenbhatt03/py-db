@@ -68,8 +68,13 @@ class Table(ABC):
         It's the row.left_child_offset and row.right_child_offset that matters and are key component
         during traversing the tree.
         """
-
-        return S4Int(Page.PAGE_SIZE + self.row_count * Row.size())
+        return S4Int(
+            int(
+                (int(self.row_count / Page.ROWS_PER_PAGE) + 1) * Page.PAGE_SIZE
+                + (self.row_count % Page.ROWS_PER_PAGE) * Row.size()
+            )
+        )
+        # return S4Int(Page.PAGE_SIZE + self.row_count * Row.size())
 
 
 class Student(Table):

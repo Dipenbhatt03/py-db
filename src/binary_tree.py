@@ -14,7 +14,6 @@ class AvlBinaryTree:
 
     @staticmethod
     def right_rotate(root_row: Optional[Row]) -> Optional[Row]:
-
         logger.debug(f"Right rotation around {root_row=}")
         if root_row is None:
             return root_row

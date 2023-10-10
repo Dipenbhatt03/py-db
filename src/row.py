@@ -33,6 +33,7 @@ class Row:
 
     """
 
+    CACHED_ROWS = {}
     LEFT_POINTER_SIZE_IN_BYTES = 4
     RIGHT_POINTER_SIZE_IN_BYTES = 4
 
@@ -155,8 +156,10 @@ class Row:
     def fetch_row(cls, location_in_file: int) -> Optional[Self]:
         if location_in_file < 0:
             return None
-        page_num, page_offset = pager.get_pager_location_from_offset(offset=location_in_file)
-        page = pager.get_page(page_num=page_num)
-        return cls.deserialize(
-            raw_byte_data=page.data[page_offset : page_offset + Row.size()], offset=S4Int(location_in_file)
-        )
+        if location_in_file not in cls.CACHED_ROWS:
+            page_num, page_offset = pager.get_pager_location_from_offset(offset=location_in_file)
+            page = pager.get_page(page_num=page_num)
+            cls.CACHED_ROWS[location_in_file] = cls.deserialize(
+                raw_byte_data=page.data[page_offset : page_offset + Row.size()], offset=S4Int(location_in_file)
+            )
+        return cls.CACHED_ROWS[location_in_file]

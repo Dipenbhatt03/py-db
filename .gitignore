@@ -37,3 +37,4 @@ seller_front/*.log
 *.log
 *.db
 *.bin
+*.svg

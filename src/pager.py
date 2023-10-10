@@ -119,6 +119,7 @@ class Pager:
 
     def pager_flush(self):
         # Flushes all dirty pages to disk
+        # logger.info(f"Flushing {len(self.dirty_pages)} dirty pages")
         for page in self.dirty_pages:
             page_offset = page.p_no * page.PAGE_SIZE
             if self.fd.tell() != page_offset:

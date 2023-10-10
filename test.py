@@ -2,14 +2,12 @@ import logging
 
 import main
 from main import PrepareStatementResult
-from src.pager import pager
+from src.pager import Page, pager
 from src.row import IntColumn, Row, S2Int, StrColumn
 from src.table import Student
 from test_bulk_insertion import BaseTestClass
 
 logger = logging.getLogger(__name__)
-
-
 
 
 class TestRowClass(BaseTestClass):
@@ -25,6 +23,32 @@ class TestRowClass(BaseTestClass):
         self.assertEqual(row_v2.right_child_offset.val, row_v1.right_child_offset.val)
         self.assertEqual(row_v2.subtree_height.val, 3)
         self.assertEqual(row_v1.serialize(), row_v2.serialize())
+
+    def test_row_offset_calculation(self):
+        # for row_count = 0
+        offset_for_r0 = self.student_table.offset_for_a_new_row
+        self.assertEqual(offset_for_r0, Page.PAGE_SIZE)
+        self.student_table.row_count = 1
+        offset_for_r1 = self.student_table.offset_for_a_new_row
+        self.assertEqual(offset_for_r1, offset_for_r0 + Row.size())
+
+        # we test random access on the same page by increase the row count to something below Rows_per_page i.e 89
+        self.student_table.row_count = 79
+        offset_for_new_row = self.student_table.offset_for_a_new_row
+        self.assertEqual(offset_for_new_row, offset_for_r0 + (self.student_table.row_count * Row.size()))
+
+        # Now testing correct offset is returned when a page fills i.e row count = 89
+        self.student_table.row_count = 89
+        offset_for_new_row = self.student_table.offset_for_a_new_row
+        self.assertEqual(offset_for_new_row, Page.PAGE_SIZE * 2)
+
+        # random access within second page
+
+        self.student_table.row_count = 140
+        offset_for_new_row = self.student_table.offset_for_a_new_row
+        self.assertEqual(
+            offset_for_new_row, Page.PAGE_SIZE * 2 + (self.student_table.row_count % Page.ROWS_PER_PAGE) * Row.size()
+        )
 
     def test_invalid_data_is_not_accepted(self):
         with self.assertRaises(AssertionError) as context:
@@ -79,9 +103,6 @@ class TestInsertion(BaseTestClass):
         with self.assertRaises(AssertionError) as context:
             self.do_insert_command(id=2, name="d" * 33)
         self.assertEqual("Max 32 characters allowed", context.exception.args[0])
-
-
-
 
 
 class TestInsertIntoBinaryTree(BaseTestClass):
