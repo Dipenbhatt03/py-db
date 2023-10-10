@@ -71,7 +71,7 @@ class Table(ABC):
 
         DATABASE_FD.write(self.row_count.serialize())
         DATABASE_FD.flush()
-
+        os.fsync(DATABASE_FD)
     def insert(self, row: Row):
         row.offset = self.offset_for_a_new_row
 
