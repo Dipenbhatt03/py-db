@@ -14,17 +14,7 @@ class AvlBinaryTree:
 
     @staticmethod
     def right_rotate(root_row: Optional[Row]) -> Optional[Row]:
-        """
-        NOTE: Care needs to be taken when we are fetching left or right child.
-        Because, the property left_child/right_child of Row class fetch the children from
-        disk. Whereas the changes happening in this function or the one calling it i.e insert are
-        not yet flushed to disk and they are in memory. So a existing calculation done on a row instance
-        needs to be reused, care should be taken when calling the property function.
 
-        Although to protect from cases like these, we have added cached_property decorator to
-        left_child/right_child assuming its gonna return the same memory location everytime.
-
-        """
         logger.debug(f"Right rotation around {root_row=}")
         if root_row is None:
             return root_row
@@ -58,7 +48,6 @@ class AvlBinaryTree:
         if root_row is None:
             return root_row
 
-        # Same care needs to be taken during left rotation as is noted down in right rotation
         right_child_row = cast(Row, root_row.right_child)  # casting to make mypy happy
         root_row.right_child_offset = right_child_row.left_child_offset
         right_child_row.left_child_offset = root_row.offset
