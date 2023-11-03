@@ -17,17 +17,27 @@ pipeline:
           cloneCodebase: true
           execution:
             steps:
-              - step:
-                  identifier: echo
-                  name: echo
-                  spec:
-                    command: echo hello world
-                  timeout: ""
-                  type: Run
+              - parallel:
+                  - step:
+                      identifier: echo
+                      name: echo
+                      spec:
+                        command: echo hello world
+                      timeout: ""
+                      type: Run
+                  - step:
+                      type: BuildAndPushDockerRegistry
+                      name: Build
+                      identifier: Build
+                      spec:
+                        connectorRef: account.harnessImage
+                        repo: deepsea12/py-db
+                        tags:
+                          - latest
           platform:
-            arch: Amd64
             os: Linux
+            arch: Amd64
           runtime:
-            spec: {}
             type: Cloud
+            spec: {}
         type: CI
