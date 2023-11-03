@@ -1,0 +1,43 @@
+pipeline:
+  identifier: Build_py_db_1699017291147
+  name: Build py-db
+  orgIdentifier: default
+  projectIdentifier: default_project
+  properties:
+    ci:
+      codebase:
+        build: <+input>
+        connectorRef: account.Github_OAuth_1699017270728
+        repoName: py-db
+  stages:
+    - stage:
+        identifier: build
+        name: build
+        spec:
+          cloneCodebase: true
+          execution:
+            steps:
+              - parallel:
+                  - step:
+                      identifier: echo
+                      name: echo
+                      spec:
+                        command: echo hello world
+                      timeout: ""
+                      type: Run
+                  - step:
+                      type: BuildAndPushDockerRegistry
+                      name: Build
+                      identifier: Build
+                      spec:
+                        connectorRef: account.harnessImage
+                        repo: deepsea12/py-db
+                        tags:
+                          - latest
+          platform:
+            os: Linux
+            arch: Amd64
+          runtime:
+            type: Cloud
+            spec: {}
+        type: CI
