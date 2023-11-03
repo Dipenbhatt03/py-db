@@ -10,35 +10,60 @@ pipeline:
         connectorRef: account.Github_OAuth_1699017270728
         repoName: py-db
   stages:
-    - stage:
-        identifier: build
-        name: build
-        spec:
-          cloneCodebase: true
-          execution:
-            steps:
-              - parallel:
-                  - step:
-                      identifier: echo
-                      name: echo
-                      spec:
-                        command: echo hello world
-                      timeout: ""
-                      type: Run
+    - parallel:
+        - stage:
+            identifier: build
+            name: build
+            spec:
+              cloneCodebase: true
+              execution:
+                steps:
+                  - parallel:
+                      - step:
+                          identifier: echo
+                          name: echo
+                          spec:
+                            command: echo hello world
+                          timeout: ""
+                          type: Run
+                      - step:
+                          type: BuildAndPushDockerRegistry
+                          name: Build
+                          identifier: Build
+                          spec:
+                            connectorRef: account.harnessImage
+                            repo: deepsea12/py-db
+                            tags:
+                              - latest
+              platform:
+                os: Linux
+                arch: Amd64
+              runtime:
+                type: Cloud
+                spec: {}
+            type: CI
+            description: ""
+        - stage:
+            name: Second build
+            identifier: Second_build
+            description: ""
+            type: CI
+            spec:
+              cloneCodebase: true
+              platform:
+                os: Linux
+                arch: Amd64
+              runtime:
+                type: Docker
+                spec: {}
+              execution:
+                steps:
                   - step:
                       type: BuildAndPushDockerRegistry
-                      name: Build
-                      identifier: Build
+                      name: BuildAndPushDockerRegistry_1
+                      identifier: BuildAndPushDockerRegistry_1
                       spec:
                         connectorRef: account.harnessImage
                         repo: deepsea12/py-db
                         tags:
-                          - latest
-          platform:
-            os: Linux
-            arch: Amd64
-          runtime:
-            type: Cloud
-            spec: {}
-        type: CI
-        description: ""
+                          - new
