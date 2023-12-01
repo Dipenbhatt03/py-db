@@ -35,7 +35,7 @@ Inspired by sqlite, an attempt at building a ACID compliant embedded database.
 Implemented the improvements listed in 2nd pr
 1. Enabling file descriptor for the database file to do io rather than opening closing it all time
 2. Implemented avl tree
-3. Updated table page layout, by saving offset of root row, coz in avl tree root row might change during rebalancing
+3. Updated table page layout, by saving offset of root row, coz in avl tree root row might change during re-balancing
 4. Added helper method to Row Class
 5. Added SmallInt col to represent 2 bit integer and updated IntCol to inherit from int class
 6. Fixed and updated test to validate all rotations of AVL tree

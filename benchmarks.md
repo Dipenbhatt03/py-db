@@ -8,7 +8,7 @@
 
     PR: [https://github.com/Dipenbhatt03/py-db/pull/2/files]
 
-![img.png](img.png)
+![img.png](assets/img.png)
 Implmenting binary tree for storage and inserting fairly
 random data, searching speed dramatically increases
 to 0.002 seconds
