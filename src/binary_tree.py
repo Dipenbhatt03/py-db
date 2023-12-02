@@ -6,6 +6,7 @@ from src.row import Row
 
 logger = logging.getLogger(__name__)
 
+
 class AvlBinaryTree:
     def __init__(self):
         self.meta_info = {}

@@ -20,6 +20,6 @@ to 0.002 seconds
 Due to the implementation of standard binary tree, insertion on skewed data had become
 extremely slow and same goes for searching during worst case.
 
-After AVL implementation its relatively more fast 10k rows in approx 4.5 seconds and 65k rows in 233 seconds.
-While still maintaining top notch search speeds
+After AVL implementation and some Row class optimisation the performance jumped to 28 seconds.
+
 

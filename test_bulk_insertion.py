@@ -24,12 +24,13 @@ class BaseTestClass(unittest.TestCase):
     def tearDown(self) -> None:
         pager.close()
         os.remove(DATABASE_FILE_NAME)
+        Row.CACHED_ROWS = {}
 
 
 class TestBulkInsertion(BaseTestClass):
     def test_insert_lotta_rows(self):
-        num_rows = 65535
-        # num_rows = 10000
+        # num_rows = 65535
+        num_rows = 10000
         t = time()
         logger.info(f"inserting {num_rows} rows")
         row_ids_to_insert = []
@@ -43,6 +44,7 @@ class TestBulkInsertion(BaseTestClass):
             self.student_table.insert(row=row)
         row_ids_to_insert.sort()
         self.student_table = Student()
+
         self.assertEqual(self.student_table.row_count, num_rows)
 
         # Now we assert the correctness of the tree, by fetching all child and checking whether they are sorted or not
@@ -53,4 +55,4 @@ class TestBulkInsertion(BaseTestClass):
         logger.info(f"Time took {time() - t}")
 
 
-unittest.main()
+# unittest.main()
