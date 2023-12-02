@@ -90,6 +90,14 @@ class Pager:
         return US2Int(int(offset / Page.PAGE_SIZE)), US2Int(offset % Page.PAGE_SIZE)
 
     def page_write(self, offset: int, bytes_to_write: bytes):
+        """
+        Right now one limitation of page_write is that, no matter how many rows are updated
+        in the page, during flushing entire page gets flushed. Which increases the io
+        thereby increasing latency during writes.
+        TODO: Find a efficient way to flush dirty pages
+        """
+
+
         page_num, page_offset = self.get_pager_location_from_offset(offset=offset)
         length_of_write_payload = len(bytes_to_write)
         assert length_of_write_payload < Page.PAGE_SIZE, "Page write not allowed as it exceeds the page size"
